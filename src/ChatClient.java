@@ -23,6 +23,7 @@ public class ChatClient {
             socket = new Socket(host, port);
             writer = new PrintWriter(socket.getOutputStream(), true);
             createUI();
+            authenticate();
             startListener();
         } catch (IOException e) {
             JOptionPane.showMessageDialog(null,
@@ -71,9 +72,9 @@ public class ChatClient {
         menuBar.add(menu);
         frame.setJMenuBar(menuBar);
         frame.setVisible(true);
-        username = JOptionPane.showInputDialog(frame, "Enter your username:");
-        writer.println(username);
-        statusLabel.setText("Connected as: " + username);
+        //username = JOptionPane.showInputDialog(frame, "Enter your username:");
+        //writer.println(username);
+        //statusLabel.setText("Connected as: " + username);
     }
     private void sendMessage() {
         String message = inputField.getText().trim();
@@ -157,6 +158,59 @@ public class ChatClient {
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
             g.setColor(Color.BLACK);
             g.drawRoundRect(x, y, width-1, height-1, radius, radius);
+        }
+    }
+    // Hàm xác thực tài khoản (đăng nhập, đăng ký)
+    private void authenticate() {
+        while (true) {
+            JPanel panel = new JPanel(new GridLayout(2, 2, 5, 5));
+            JTextField userField = new JTextField();
+            JPasswordField passField = new JPasswordField();
+            panel.add(new JLabel("Tên đăng nhập:"));
+            panel.add(userField);
+            panel.add(new JLabel("Mật khẩu:"));
+            panel.add(passField);
+
+            String[] options = new String[]{"Đăng nhập", "Đăng ký", "Thoát"};
+            int option = JOptionPane.showOptionDialog(frame, panel, "Xác thực tài khoản",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
+                    null, options, options[0]);
+
+            if (option == 2 || option == JOptionPane.CLOSED_OPTION) {
+                System.exit(0); // Nhấn thoát hoặc dấu X
+            }
+
+            String user = userField.getText().trim();
+            String pass = new String(passField.getPassword()).trim();
+            String command = (option == 0) ? "LOGIN:" : "REG:"; 
+            
+            // Gửi gói tin lên server theo đúng giao thức đã thiết kế
+            writer.println(command + user + ":" + pass);
+
+            try {
+                // Đọc phản hồi trực tiếp từ server
+                BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                String response = reader.readLine();
+
+                if (response != null && response.equals("LOGIN_SUCCESS")) {
+                    this.username = user;
+                    statusLabel.setText("Connected as: " + username);
+                    JOptionPane.showMessageDialog(frame, "Đăng nhập thành công!");
+                    break; // Thoát vòng lặp, bắt đầu chat
+                    
+                } else if (response != null && response.equals("REG_SUCCESS")) {
+                    JOptionPane.showMessageDialog(frame, "Đăng ký thành công! Vui lòng đăng nhập lại.");
+                    
+                } else if (response != null) {
+                    // Tách chuỗi để lấy lý do lỗi (Ví dụ: LOGIN_FAIL:Sai mật khẩu)
+                    String[] errorParts = response.split(":", 2);
+                    String errorMsg = (errorParts.length > 1) ? errorParts[1] : "Lỗi không xác định";
+                    JOptionPane.showMessageDialog(frame, errorMsg, "Thất bại", JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(frame, "Mất kết nối tới server!");
+                System.exit(0);
+            }
         }
     }
 }
