@@ -64,23 +64,61 @@ public class ChatServer {
             return username;
         }
         public void run() {
-            try (
-                BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))
-            ) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
                 writer = new PrintWriter(socket.getOutputStream(), true);
-                writer.println("Enter your username:");
-                username = reader.readLine();
-                broadcast(username + " has joined the chat!");
-                updateUserList();
+                
+                boolean loggedIn = false;
+                
+                // Đăng ký / đăng nhập
+                while (!loggedIn) {
+                    String authRequest = reader.readLine();
+                    if (authRequest == null) return;
+
+                    // Tách chuỗi theo định dạng Client gửi: COMMAND:user:pass
+                    String[] tokens = authRequest.split(":");
+                    if (tokens.length < 3) continue; // Bỏ qua nếu gói tin bị thiếu dữ liệu
+
+                    String command = tokens[0];
+                    String user = tokens[1];
+                    String pass = tokens[2];
+
+                    if ("REG".equals(command)) {
+                        if (DatabaseManager.registerUser(user, pass)) {
+                            writer.println("REG_SUCCESS");
+                        } else {
+                            writer.println("REG_FAIL:Tên tài khoản đã tồn tại hoặc lỗi DB!");
+                        }
+                    } else if ("LOGIN".equals(command)) {
+                        if (DatabaseManager.verifyUser(user, pass)) {
+                            this.username = user;
+                            writer.println("LOGIN_SUCCESS");
+                            loggedIn = true;
+                            
+                            broadcast(username + " has joined the chat!");
+                            updateUserList();
+                        } else {
+                            writer.println("LOGIN_FAIL:Sai tài khoản hoặc mật khẩu.");
+                        }
+                    }
+                }
+
+                // Chat bình thường sau khi đăng nhập
                 String message;
                 while ((message = reader.readLine()) != null) {
-                    broadcast(username + ":" + message); // send to everyone
+                    // Lưu tin nhắn vào Database
+                    DatabaseManager.saveMessage(username, message);
+                    
+                    // Phát tin nhắn cho toàn bộ phòng
+                    broadcast(username + ":" + message); 
                     System.out.println(username + ": " + message);
                 }
+                
             } catch (IOException e) {
                 System.out.println(username + " disconnected.");
             } finally {
-                removeClient(this);
+                if (username != null) { // Chỉ xóa nếu đã đăng nhập thành công
+                    removeClient(this);
+                }
                 try { socket.close(); } catch (IOException ignored) {}
             }
         }
