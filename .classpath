@@ -6,10 +6,6 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="lib" path="D:/Download/apache-tomcat-10.1.30-windows-x86/apache-tomcat-10.1.30/webapps/ROOT/WEB-INF/lib/mysql-connector-j-8.0.33.jar">
-		<attributes>
-			<attribute name="module" value="true"/>
-		</attributes>
-	</classpathentry>
+	<classpathentry kind="lib" path="D:/ChatApp/mysql-connector-j-8.0.33.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
