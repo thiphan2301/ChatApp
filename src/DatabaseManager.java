@@ -68,6 +68,8 @@ public class DatabaseManager {
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        }
+    }
  // Lưu tin nhắn riêng vào bảng messages với sender_id và receiver_id
     public static void savePrivateMessage(String senderName, String receiverName, String content) {
         String query = "INSERT INTO messages (sender_id, receiver_id, content, created_at) " +

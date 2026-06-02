@@ -2,6 +2,7 @@ import java.awt.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.List;
 import javax.swing.*;
 import javax.swing.border.*;
 
@@ -18,6 +19,10 @@ public class ChatClient {
     private DefaultListModel<String> userListModel;
     private JList<String> userList;
     private Map<String, Color> userColors = new HashMap<>();
+    
+    // THÊM: Biến lưu danh sách phòng hiện có từ server gửi về
+    private List<String> availableRooms = new ArrayList<>();
+
     public ChatClient(String host, int port) {
         try {
             socket = new Socket(host, port);
@@ -32,19 +37,39 @@ public class ChatClient {
                     JOptionPane.ERROR_MESSAGE);
         }
     }
+
     private void createUI() {
         frame = new JFrame("Modern Chat Client");
         frame.setSize(800, 500);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLayout(new BorderLayout());
+        
+        // --- THÊM: TẠO PANEL PHÍA TRÊN GỒM TRẠNG THÁI VÀ NÚT QUẢN LÝ PHÒNG ---
+        JPanel topPanel = new JPanel(new BorderLayout());
+        
         statusLabel = new JLabel("Connecting...");
-        statusLabel.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
-        frame.add(statusLabel, BorderLayout.NORTH);
+        statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        topPanel.add(statusLabel, BorderLayout.CENTER);
+        
+        JButton roomButton = new JButton("Quản lý Phòng");
+        roomButton.setBackground(new Color(60, 179, 113)); // Màu xanh lá
+        roomButton.setForeground(Color.WHITE);
+        roomButton.setFocusPainted(false);
+        roomButton.addActionListener(e -> openRoomManager());
+        
+        JPanel topButtonPanel = new JPanel();
+        topButtonPanel.add(roomButton);
+        topPanel.add(topButtonPanel, BorderLayout.EAST);
+        
+        frame.add(topPanel, BorderLayout.NORTH);
+        // -----------------------------------------------------------------
+
         chatPanel = new JPanel();
         chatPanel.setLayout(new BoxLayout(chatPanel, BoxLayout.Y_AXIS));
         chatPanel.setBackground(new Color(245,245,245));
         chatScroll = new JScrollPane(chatPanel);
         frame.add(chatScroll, BorderLayout.CENTER);
+        
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputField = new JTextField();
         sendButton = new JButton("Send");
@@ -57,10 +82,15 @@ public class ChatClient {
         inputPanel.add(sendButton, BorderLayout.EAST);
         inputPanel.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));
         frame.add(inputPanel, BorderLayout.SOUTH);
+        
         JMenuBar menuBar = new JMenuBar();
         JMenu menu = new JMenu("Options");
         JMenuItem clearItem = new JMenuItem("Clear Chat");
-        clearItem.addActionListener(e -> chatPanel.removeAll());
+        clearItem.addActionListener(e -> {
+            chatPanel.removeAll();
+            chatPanel.revalidate();
+            chatPanel.repaint();
+        });
         JMenuItem exitItem = new JMenuItem("Exit");
         exitItem.addActionListener(e -> System.exit(0));
         menu.add(clearItem);
@@ -68,13 +98,12 @@ public class ChatClient {
         menuBar.add(menu);
         frame.setJMenuBar(menuBar);
         frame.setVisible(true);
-        //username = JOptionPane.showInputDialog(frame, "Enter your username:");
-        //writer.println(username);
-        //statusLabel.setText("Connected as: " + username);
+
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
         userList.setPreferredSize(new Dimension(150, 0));
-     // Double-click vào tên người dùng trong danh sách để tự điền lệnh nhắn tin riêng
+        
+        // Double-click vào tên người dùng trong danh sách để tự điền lệnh nhắn tin riêng
         userList.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -95,6 +124,26 @@ public class ChatClient {
 
         frame.add(new JScrollPane(userList), BorderLayout.EAST);
     }
+
+    // THÊM: Hàm mở Dialog quản lý phòng (Đã được làm đơn giản lại)
+    private void openRoomManager() {
+        RoomSelectionDialog dialog = new RoomSelectionDialog(frame, availableRooms);
+        dialog.setVisible(true);
+
+        String action = dialog.getActionType();
+        if ("JOIN".equals(action)) {
+            writer.println("/join " + dialog.getRoomName());
+            chatPanel.removeAll(); 
+            chatPanel.revalidate();
+            chatPanel.repaint();
+        } else if ("CREATE".equals(action)) {
+            writer.println("/create " + dialog.getRoomName());
+            chatPanel.removeAll(); 
+            chatPanel.revalidate();
+            chatPanel.repaint();
+        }
+    }
+
     private void sendMessage() {
         String message = inputField.getText().trim();
 
@@ -102,8 +151,8 @@ public class ChatClient {
             return;
         }
 
-     // Xử lý cú pháp nhắn tin riêng từ client
-     // Cú pháp: /private tenNguoiNhan noiDung
+        // Xử lý cú pháp nhắn tin riêng từ client
+        // Cú pháp: /private tenNguoiNhan noiDung
         if (message.equals("/private") || message.startsWith("/private ")) {
             String[] parts = message.split("\\s+", 3);
 
@@ -116,7 +165,6 @@ public class ChatClient {
             String receiver = parts[1].trim();
             String content = parts[2].trim();
 
-
             writer.println("PRIVATE:" + receiver + ":" + content);
             addMessageBubble(username + " -> " + receiver + " (private): " + content);
         } else {
@@ -125,6 +173,7 @@ public class ChatClient {
 
         inputField.setText("");
     }
+
     private void startListener() {
         Thread listener = new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
@@ -132,7 +181,19 @@ public class ChatClient {
                 while ((message = reader.readLine()) != null) {
                     if (message.startsWith("USERLIST:")) {
                         updateUserList(message.substring(9));
-                    } else {
+                    } 
+                    // THÊM: Xử lý các gói tin về Phòng từ Server
+                    else if (message.startsWith("ROOMLIST:")) {
+                        String[] rooms = message.substring(9).split(",");
+                        availableRooms = new ArrayList<>(Arrays.asList(rooms));
+                    } 
+                    else if (message.startsWith("ROOM_ERROR:")) {
+                        JOptionPane.showMessageDialog(frame, message.substring(11), "Lỗi Phòng", JOptionPane.ERROR_MESSAGE);
+                    }
+                    else if (message.startsWith("ROOM_CHANGED:") || message.startsWith("IS_HOST:")) {
+                        System.out.println(message); // Tạm in ra console để test
+                    } 
+                    else {
                         addMessageBubble(message);
                     }
                 }
@@ -145,6 +206,7 @@ public class ChatClient {
         });
         listener.start();
     }
+
     private void updateUserList(String listStr) {
         SwingUtilities.invokeLater(() -> {
             userListModel.clear();
@@ -157,10 +219,12 @@ public class ChatClient {
             }
         });
     }
+
     private Color generateColor(String name) {
         Random rand = new Random(name.hashCode());
         return new Color(rand.nextInt(200)+30, rand.nextInt(200)+30, rand.nextInt(200)+30);
     }
+
     private void addMessageBubble(String message) {
         SwingUtilities.invokeLater(() -> {
             JPanel bubblePanel = new JPanel();
@@ -182,6 +246,7 @@ public class ChatClient {
             chatScroll.getVerticalScrollBar().setValue(chatScroll.getVerticalScrollBar().getMaximum());
         });
     }
+
     private String getSender(String message) {
         int idx = message.indexOf(":");
         if (idx > 0) {
@@ -189,9 +254,11 @@ public class ChatClient {
         }
         return "";
     }
+
     public static void main(String[] args) {
         new ChatClient("localhost", 8000);
     }
+
     class RoundedBorder implements Border {
         private int radius;
         RoundedBorder(int r) { radius = r; }
@@ -202,6 +269,7 @@ public class ChatClient {
             g.drawRoundRect(x, y, width-1, height-1, radius, radius);
         }
     }
+
     // Hàm xác thực tài khoản (đăng nhập, đăng ký)
     private void authenticate() {
         while (true) {
@@ -255,6 +323,87 @@ public class ChatClient {
             }
         }
     }
+
+    class RoomSelectionDialog extends JDialog {
+        private String actionType = null; // "JOIN" or "CREATE"
+        private String roomName = null;
+
+        public RoomSelectionDialog(JFrame parent, List<String> availableRooms) {
+            super(parent, "Quản lý Phòng", true);
+            setLayout(new BorderLayout());
+            setSize(320, 150); // Thu nhỏ kích thước cửa sổ lại cho gọn
+            setLocationRelativeTo(parent);
+
+            JTabbedPane tabbedPane = new JTabbedPane();
+
+            // --- TAB 1: JOIN EXISTING ROOM ---
+            JPanel joinPanel = new JPanel(new GridLayout(2, 1, 5, 5));
+            joinPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+            
+            JPanel joinComboPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            joinComboPanel.add(new JLabel("Chọn phòng:"));
+            JComboBox<String> roomCombo = new JComboBox<>(availableRooms.toArray(new String[0]));
+            joinComboPanel.add(roomCombo);
+            joinPanel.add(joinComboPanel);
+            
+            JButton btnJoin = new JButton("Vào Phòng");
+            btnJoin.setBackground(new Color(100, 149, 237));
+            btnJoin.setForeground(Color.WHITE);
+            btnJoin.setFocusPainted(false);
+            JPanel joinBtnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            joinBtnPanel.add(btnJoin);
+            joinPanel.add(joinBtnPanel);
+
+            btnJoin.addActionListener(e -> {
+                String selected = (String) roomCombo.getSelectedItem();
+                if (selected != null && !selected.trim().isEmpty()) {
+                    actionType = "JOIN";
+                    roomName = selected.trim();
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Vui lòng chọn một phòng!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                }
+            });
+
+            // --- TAB 2: CREATE NEW ROOM ---
+            JPanel createPanel = new JPanel(new GridLayout(2, 1, 5, 5));
+            createPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
+            
+            JPanel createInputPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            createInputPanel.add(new JLabel("Tên phòng mới:"));
+            JTextField createNameField = new JTextField(12);
+            createInputPanel.add(createNameField);
+            createPanel.add(createInputPanel);
+            
+            JButton btnCreate = new JButton("Tạo & Vào Phòng");
+            btnCreate.setBackground(new Color(60, 179, 113));
+            btnCreate.setForeground(Color.WHITE);
+            btnCreate.setFocusPainted(false);
+            JPanel createBtnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+            createBtnPanel.add(btnCreate);
+            createPanel.add(createBtnPanel);
+
+            btnCreate.addActionListener(e -> {
+                String name = createNameField.getText().trim();
+                if (!name.isEmpty()) {
+                    if (name.contains("|") || name.contains(":")) {
+                        JOptionPane.showMessageDialog(this, "Tên phòng không được chứa ký tự đặc biệt '|' hoặc ':'", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    actionType = "CREATE";
+                    roomName = name;
+                    dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Tên phòng không được để trống!", "Cảnh báo", JOptionPane.WARNING_MESSAGE);
+                }
+            });
+
+            tabbedPane.addTab("Vào Phòng", joinPanel);
+            tabbedPane.addTab("Tạo Phòng Mới", createPanel);
+            add(tabbedPane, BorderLayout.CENTER);
+        }
+
+        public String getActionType() { return actionType; }
+        public String getRoomName() { return roomName; }
+    }
 }
-
-
