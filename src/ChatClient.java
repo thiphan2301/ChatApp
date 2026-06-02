@@ -78,10 +78,32 @@ public class ChatClient {
     }
     private void sendMessage() {
         String message = inputField.getText().trim();
-        if (!message.isEmpty()) {
-            writer.println(message); // send to server
-            inputField.setText("");
+
+        if (message.isEmpty()) {
+            return;
         }
+
+        // Lệnh nhắn tin riêng:
+        // /private username nội_dung
+        if (message.startsWith("/private ")) {
+            String[] parts = message.split(" ", 3);
+
+            if (parts.length < 3) {
+                addMessageBubble("SYSTEM: Sai cú pháp. Dùng: /private tenNguoiNhan noiDung");
+                inputField.setText("");
+                return;
+            }
+
+            String receiver = parts[1];
+            String content = parts[2];
+
+            writer.println("PRIVATE:" + receiver + ":" + content);
+            addMessageBubble(username + " -> " + receiver + " (private): " + content);
+        } else {
+            writer.println(message);
+        }
+
+        inputField.setText("");
     }
     private void startListener() {
         Thread listener = new Thread(() -> {
