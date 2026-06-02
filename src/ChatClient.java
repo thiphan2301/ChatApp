@@ -97,11 +97,6 @@ public class ChatClient {
             String receiver = parts[1].trim();
             String content = parts[2].trim();
 
-            if (receiver.isEmpty() || content.isEmpty()) {
-                addMessageBubble("SYSTEM: Người nhận hoặc nội dung tin nhắn riêng không được để trống.");
-                inputField.setText("");
-                return;
-            }
 
             writer.println("PRIVATE:" + receiver + ":" + content);
             addMessageBubble(username + " -> " + receiver + " (private): " + content);
