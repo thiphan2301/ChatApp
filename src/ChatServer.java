@@ -44,6 +44,24 @@ public class ChatServer {
             }
         }
     }
+    public void sendPrivateMessage(ClientHandler senderClient, String receiverUsername, String content) {
+        boolean found = false;
+
+        synchronized (clients) {
+            for (ClientHandler client : clients) {
+                if (receiverUsername.equals(client.getUsername())) {
+                    client.sendMessage("[PRIVATE] " + senderClient.getUsername() + ": " + content);
+                    senderClient.sendMessage("[PRIVATE to " + receiverUsername + "] " + content);
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found) {
+            senderClient.sendMessage("SYSTEM: Người nhận " + receiverUsername + " hiện không online.");
+        }
+    }
     public void removeClient(ClientHandler client) {
         clients.remove(client);
         broadcast(client.getUsername() + " has left the chat.");
@@ -102,14 +120,38 @@ public class ChatServer {
                     }
                 }
 
-                // Chat bình thường sau khi đăng nhập
+             // Chat bình thường sau khi đăng nhập
                 String message;
                 while ((message = reader.readLine()) != null) {
-                    // Lưu tin nhắn vào Database
+
+                    if (message.startsWith("PRIVATE:")) {
+                        String[] privateParts = message.split(":", 3);
+
+                        if (privateParts.length == 3) {
+                            String receiverUsername = privateParts[1];
+                            String privateContent = privateParts[2];
+
+                            sendPrivateMessage(this, receiverUsername, privateContent);
+
+                            System.out.println("[PRIVATE] " + username + " -> " + receiverUsername + ": " + privateContent);
+                        } else {
+                            sendMessage("SYSTEM: Sai định dạng tin nhắn riêng.");
+                        }
+
+                        continue;
+                    }
+
+                    // Chặn không cho hien thong bị phát ra phòng chat
+                    if (message.startsWith("LOGIN:") || message.startsWith("REG:")) {
+                        System.out.println("Ignored auth message after login from " + username);
+                        continue;
+                    }
+
+                    // Lưu tin nhắn thường vào Database
                     DatabaseManager.saveMessage(username, message);
-                    
-                    // Phát tin nhắn cho toàn bộ phòng
-                    broadcast(username + ":" + message); 
+
+                    // Phát tin nhắn thường cho toàn bộ phòng
+                    broadcast(username + ":" + message);
                     System.out.println(username + ": " + message);
                 }
                 
