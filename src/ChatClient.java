@@ -85,17 +85,23 @@ public class ChatClient {
 
         // Lệnh nhắn tin riêng:
         // /private username nội_dung
-        if (message.startsWith("/private ")) {
-            String[] parts = message.split(" ", 3);
+        if (message.equals("/private") || message.startsWith("/private ")) {
+            String[] parts = message.split("\\s+", 3);
 
             if (parts.length < 3) {
-                addMessageBubble("SYSTEM: Sai cú pháp. Dùng: /private tenNguoiNhan noiDung");
+                addMessageBubble("SYSTEM: Vui lòng nhập đúng cú pháp: /private tenNguoiNhan noiDung");
                 inputField.setText("");
                 return;
             }
 
-            String receiver = parts[1];
-            String content = parts[2];
+            String receiver = parts[1].trim();
+            String content = parts[2].trim();
+
+            if (receiver.isEmpty() || content.isEmpty()) {
+                addMessageBubble("SYSTEM: Người nhận hoặc nội dung tin nhắn riêng không được để trống.");
+                inputField.setText("");
+                return;
+            }
 
             writer.println("PRIVATE:" + receiver + ":" + content);
             addMessageBubble(username + " -> " + receiver + " (private): " + content);
