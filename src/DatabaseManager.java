@@ -1,4 +1,3 @@
-
 import java.sql.*;
 
 public class DatabaseManager {
@@ -38,14 +37,27 @@ public class DatabaseManager {
         }
     }
 
-    // Hàm lưu tin nhắn vào lịch sử
-    public static void saveMessage(String senderName, String content) {
-        String query = "INSERT INTO messages (sender_id, content) " +
-                       "VALUES ((SELECT id FROM users WHERE username = ?), ?)";
+    // Hàm lưu tin nhắn vào lịch sử (thêm msgId)
+    public static void saveMessage(String msgId, String senderName, String content) {
+        String query = "INSERT INTO messages (msg_id, sender_id, content) " +
+                       "VALUES (?, (SELECT id FROM users WHERE username = ?), ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
-            ps.setString(1, senderName);
-            ps.setString(2, content);
+            ps.setString(1, msgId);
+            ps.setString(2, senderName);
+            ps.setString(3, content);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Lỗi lưu DB (Hãy đảm bảo đã thêm cột msg_id vào bảng messages).");
+        }
+    }
+
+    // Hàm cập nhật nội dung khi thu hồi tin nhắn
+    public static void recallMessage(String msgId) {
+        String query = "UPDATE messages SET content = 'Tin nhắn đã bị thu hồi' WHERE msg_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+            ps.setString(1, msgId);
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
