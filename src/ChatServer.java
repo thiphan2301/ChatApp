@@ -115,26 +115,41 @@ public class ChatServer {
 
 				String message;
 				while ((message = reader.readLine()) != null) {
-					// Kiểm tra gói dữ liệu truyền tải thông tin file
 					if (message.startsWith("FILE:")) {
-						// Tách chuỗi thành tối đa 3 phần (FILE, tên file, dữ liệu mã hoá Base64)
-						String[] parts = message.split(":", 3);
-						if (parts.length == 3) {
-							String fileName = parts[1];
-							String base64Data = parts[2];
-
-							// Lưu vết hoạt động đính kèm file vào Database lịch sử chat
-							DatabaseManager.saveMessage(username, "[Đính kèm file]: " + fileName);
-
-							// Gửi phân phối gói tin file đến toàn bộ người dùng đang online trong phòng
-							broadcast("FILE:" + username + ":" + fileName + ":" + base64Data);
-							System.out.println(username + " vừa gửi 1 file: " + fileName);
+						// FILE:uuid:fileName:base64
+						String[] parts = message.split(":", 4);
+						if (parts.length == 4) {
+							String uuid = parts[1];
+							String fileName = parts[2];
+							String base64Data = parts[3];
+							DatabaseManager.saveMessage(uuid, username, "[Đính kèm file]: " + fileName);
+							broadcast("FILE:" + uuid + ":" + username + ":" + fileName + ":" + base64Data);
 						}
-					} else {
-						// Lưu và phát sóng gói tin nhắn văn bản thông thường
-						DatabaseManager.saveMessage(username, message);
-						broadcast(username + ":" + message);
-						System.out.println(username + ": " + message);
+					} else if (message.startsWith("CHAT:")) {
+						// CHAT:uuid:text
+						String[] parts = message.split(":", 3);
+						if(parts.length == 3) {
+							DatabaseManager.saveMessage(parts[1], username, parts[2]);
+							broadcast("CHAT:" + parts[1] + ":" + username + ":" + parts[2]);
+						}
+					} else if (message.startsWith("REPLY:")) {
+						// REPLY:uuid:quote|text
+						String[] parts = message.split(":", 3);
+						if(parts.length == 3) {
+							DatabaseManager.saveMessage(parts[1], username, "[Trả lời]: " + parts[2]);
+							broadcast("REPLY:" + parts[1] + ":" + username + ":" + parts[2]);
+						}
+					} else if (message.startsWith("RECALL:")) {
+						// RECALL:uuid
+						String uuid = message.split(":")[1];
+						DatabaseManager.recallMessage(uuid);
+						broadcast("RECALL:" + uuid);
+					} else if (message.startsWith("REACT:")) {
+						// REACT:uuid:emoji
+						String[] parts = message.split(":", 3);
+						if(parts.length == 3) {
+							broadcast("REACT:" + parts[1] + ":" + username + ":" + parts[2]);
+						}
 					}
 				}
 
