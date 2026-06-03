@@ -233,12 +233,48 @@ public class ChatServer {
                         continue;
                     }
 
-                    // 5. Tin nhắn chung trong phòng
-                    // Lưu tin nhắn vào DB kèm theo Tên phòng để dễ phân biệt
-                    DatabaseManager.saveMessage(username, "[" + currentRoom + "] " + message);
-                    
-                    broadcastToRoom(currentRoom, username + ":" + message);
-                    System.out.println("[" + currentRoom + "] " + username + ": " + message);
+                    // 5. Tin nhắn tương tác và chia sẻ file
+                    if (message.startsWith("FILE:")) {
+                        // FILE:uuid:fileName:base64
+                        String[] parts = message.split(":", 4);
+                        if (parts.length == 4) {
+                            String uuid = parts[1];
+                            String fileName = parts[2];
+                            String base64Data = parts[3];
+                            DatabaseManager.saveMessage(uuid, username, "[" + currentRoom + "] [Đính kèm file]: " + fileName);
+                            broadcastToRoom(currentRoom, "FILE:" + uuid + ":" + username + ":" + fileName + ":" + base64Data);
+                        }
+                    } else if (message.startsWith("CHAT:")) {
+                        // CHAT:uuid:text
+                        String[] parts = message.split(":", 3);
+                        if (parts.length == 3) {
+                            DatabaseManager.saveMessage(parts[1], username, "[" + currentRoom + "] " + parts[2]);
+                            broadcastToRoom(currentRoom, "CHAT:" + parts[1] + ":" + username + ":" + parts[2]);
+                        }
+                    } else if (message.startsWith("REPLY:")) {
+                        // REPLY:uuid:quote|text
+                        String[] parts = message.split(":", 3);
+                        if (parts.length == 3) {
+                            DatabaseManager.saveMessage(parts[1], username, "[" + currentRoom + "] [Trả lời]: " + parts[2]);
+                            broadcastToRoom(currentRoom, "REPLY:" + parts[1] + ":" + username + ":" + parts[2]);
+                        }
+                    } else if (message.startsWith("RECALL:")) {
+                        // RECALL:uuid
+                        String uuid = message.split(":")[1];
+                        DatabaseManager.recallMessage(uuid);
+                        broadcastToRoom(currentRoom, "RECALL:" + uuid);
+                    } else if (message.startsWith("REACT:")) {
+                        // REACT:uuid:emoji
+                        String[] parts = message.split(":", 3);
+                        if (parts.length == 3) {
+                            broadcastToRoom(currentRoom, "REACT:" + parts[1] + ":" + username + ":" + parts[2]);
+                        }
+                    } else {
+                        // 6. Tin nhắn chung trong phòng (dành cho fallback)
+                        DatabaseManager.saveMessage(username, "[" + currentRoom + "] " + message);
+                        broadcastToRoom(currentRoom, username + ":" + message);
+                        System.out.println("[" + currentRoom + "] " + username + ": " + message);
+                    }
                 }
                 
             } catch (IOException e) {
