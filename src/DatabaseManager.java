@@ -34,6 +34,7 @@ public class DatabaseManager {
             ps.setString(2, password);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
+             e.printStackTrace();
             return false; // Thất bại nếu trùng username 
         }
     }
@@ -47,6 +48,26 @@ public class DatabaseManager {
             ps.setString(1, senderName);
             ps.setString(2, content);
             ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+ // Hàm lưu tin nhắn riêng vào lịch sử
+    public static void savePrivateMessage(String senderName, String receiverName, String content) {
+        String query = "INSERT INTO messages (sender_id, receiver_id, content, created_at) " +
+                       "VALUES (" +
+                       "(SELECT id FROM users WHERE username = ?), " +
+                       "(SELECT id FROM users WHERE username = ?), " +
+                       "?, NOW())";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+
+            ps.setString(1, senderName);
+            ps.setString(2, receiverName);
+            ps.setString(3, content);
+            ps.executeUpdate();
+
         } catch (SQLException e) {
             e.printStackTrace();
         }

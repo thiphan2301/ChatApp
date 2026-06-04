@@ -132,6 +132,7 @@ public class ChatServer {
                             String privateContent = privateParts[2];
 
                             sendPrivateMessage(this, receiverUsername, privateContent);
+                            DatabaseManager.savePrivateMessage(username, receiverUsername, privateContent);
 
                             System.out.println("[PRIVATE] " + username + " -> " + receiverUsername + ": " + privateContent);
                         } else {
