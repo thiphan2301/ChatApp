@@ -74,7 +74,7 @@ public class ChatClient {
         userListModel = new DefaultListModel<>();
         userList = new JList<>(userListModel);
         userList.setPreferredSize(new Dimension(150, 0));
-
+     // Double-click vào tên người dùng trong danh sách để tự điền lệnh nhắn tin riêng
         userList.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 if (e.getClickCount() == 2) {
@@ -102,8 +102,8 @@ public class ChatClient {
             return;
         }
 
-        // Lệnh nhắn tin riêng:
-        // /private username nội_dung
+     // Xử lý cú pháp nhắn tin riêng từ client
+     // Cú pháp: /private tenNguoiNhan noiDung
         if (message.equals("/private") || message.startsWith("/private ")) {
             String[] parts = message.split("\\s+", 3);
 

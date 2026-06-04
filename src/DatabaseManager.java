@@ -39,7 +39,7 @@ public class DatabaseManager {
         }
     }
 
-    // Hàm lưu tin nhắn vào lịch sử
+ // Lưu tin nhắn thường vào bảng messages
     public static void saveMessage(String senderName, String content) {
         String query = "INSERT INTO messages (sender_id, content) " +
                        "VALUES ((SELECT id FROM users WHERE username = ?), ?)";
@@ -52,7 +52,7 @@ public class DatabaseManager {
             e.printStackTrace();
         }
     }
- // Hàm lưu tin nhắn riêng vào lịch sử
+ // Lưu tin nhắn riêng vào bảng messages với sender_id và receiver_id
     public static void savePrivateMessage(String senderName, String receiverName, String content) {
         String query = "INSERT INTO messages (sender_id, receiver_id, content, created_at) " +
                        "VALUES (" +

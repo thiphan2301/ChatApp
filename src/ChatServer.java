@@ -122,10 +122,10 @@ public class ChatServer {
                     }
                 }
 
-             // Chat bình thường sau khi đăng nhập
+             // Xử lý tin nhắn sau khi người dùng đăng nhập thành công
                 String message;
                 while ((message = reader.readLine()) != null) {
-
+                	// Nếu là tin nhắn riêng, server chỉ gửi cho đúng người nhận
                     if (message.startsWith("PRIVATE:")) {
                         String[] privateParts = message.split(":", 3);
 
@@ -136,6 +136,7 @@ public class ChatServer {
                             boolean sent = sendPrivateMessage(this, receiverUsername, privateContent);
 
                             if (sent) {
+                            	// Chỉ lưu tin nhắn riêng vào database khi người nhận online và gửi thành công
                                 DatabaseManager.savePrivateMessage(username, receiverUsername, privateContent);
                                 System.out.println("[PRIVATE] " + username + " -> " + receiverUsername + ": " + privateContent);
                             } else {
@@ -148,7 +149,7 @@ public class ChatServer {
                         continue;
                     }
 
-                    // Chặn không cho hien thong bị phát ra phòng chat
+                 // Chặn không cho thông tin đăng nhập/đăng ký bị phát ra phòng chat
                     if (message.startsWith("LOGIN:") || message.startsWith("REG:")) {
                         System.out.println("Ignored auth message after login from " + username);
                         continue;
