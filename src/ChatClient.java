@@ -45,10 +45,6 @@ public class ChatClient {
         chatPanel.setBackground(new Color(245,245,245));
         chatScroll = new JScrollPane(chatPanel);
         frame.add(chatScroll, BorderLayout.CENTER);
-        userListModel = new DefaultListModel<>();
-        userList = new JList<>(userListModel);
-        userList.setPreferredSize(new Dimension(150, 0));
-        frame.add(new JScrollPane(userList), BorderLayout.EAST);
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputField = new JTextField();
         sendButton = new JButton("Send");
@@ -75,6 +71,29 @@ public class ChatClient {
         //username = JOptionPane.showInputDialog(frame, "Enter your username:");
         //writer.println(username);
         //statusLabel.setText("Connected as: " + username);
+        userListModel = new DefaultListModel<>();
+        userList = new JList<>(userListModel);
+        userList.setPreferredSize(new Dimension(150, 0));
+
+        userList.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    String selectedUser = userList.getSelectedValue();
+
+                    if (selectedUser != null && selectedUser.equals(username)) {
+                        addMessageBubble("SYSTEM: Không thể nhắn tin riêng cho chính mình.");
+                        return;
+                    }
+
+                    if (selectedUser != null) {
+                        inputField.setText("/private " + selectedUser + " ");
+                        inputField.requestFocus();
+                    }
+                }
+            }
+        });
+
+        frame.add(new JScrollPane(userList), BorderLayout.EAST);
     }
     private void sendMessage() {
         String message = inputField.getText().trim();
