@@ -44,7 +44,7 @@ public class ChatServer {
             }
         }
     }
-    public void sendPrivateMessage(ClientHandler senderClient, String receiverUsername, String content) {
+    public boolean sendPrivateMessage(ClientHandler senderClient, String receiverUsername, String content) {
         boolean found = false;
 
         synchronized (clients) {
@@ -61,6 +61,8 @@ public class ChatServer {
         if (!found) {
             senderClient.sendMessage("SYSTEM: Người nhận " + receiverUsername + " hiện không online.");
         }
+
+        return found;
     }
     public void removeClient(ClientHandler client) {
         clients.remove(client);
@@ -131,10 +133,14 @@ public class ChatServer {
                             String receiverUsername = privateParts[1];
                             String privateContent = privateParts[2];
 
-                            sendPrivateMessage(this, receiverUsername, privateContent);
-                            DatabaseManager.savePrivateMessage(username, receiverUsername, privateContent);
+                            boolean sent = sendPrivateMessage(this, receiverUsername, privateContent);
 
-                            System.out.println("[PRIVATE] " + username + " -> " + receiverUsername + ": " + privateContent);
+                            if (sent) {
+                                DatabaseManager.savePrivateMessage(username, receiverUsername, privateContent);
+                                System.out.println("[PRIVATE] " + username + " -> " + receiverUsername + ": " + privateContent);
+                            } else {
+                                System.out.println("[PRIVATE FAILED] " + username + " -> " + receiverUsername + ": " + privateContent);
+                            }
                         } else {
                             sendMessage("SYSTEM: Sai định dạng tin nhắn riêng.");
                         }
