@@ -1,3 +1,4 @@
+
 import java.sql.*;
 
 public class DatabaseManager {
@@ -33,32 +34,40 @@ public class DatabaseManager {
             ps.setString(2, password);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
+             e.printStackTrace();
             return false; // Thất bại nếu trùng username 
         }
     }
 
-    // Hàm lưu tin nhắn vào lịch sử (thêm msgId)
-    public static void saveMessage(String msgId, String senderName, String content) {
-        String query = "INSERT INTO messages (msg_id, sender_id, content) " +
-                       "VALUES (?, (SELECT id FROM users WHERE username = ?), ?)";
+ // Lưu tin nhắn thường vào bảng messages
+    public static void saveMessage(String senderName, String content) {
+        String query = "INSERT INTO messages (sender_id, content) " +
+                       "VALUES ((SELECT id FROM users WHERE username = ?), ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
-            ps.setString(1, msgId);
-            ps.setString(2, senderName);
-            ps.setString(3, content);
+            ps.setString(1, senderName);
+            ps.setString(2, content);
             ps.executeUpdate();
         } catch (SQLException e) {
-            System.out.println("Lỗi lưu DB (Hãy đảm bảo đã thêm cột msg_id vào bảng messages).");
+            e.printStackTrace();
         }
     }
+ // Lưu tin nhắn riêng vào bảng messages với sender_id và receiver_id
+    public static void savePrivateMessage(String senderName, String receiverName, String content) {
+        String query = "INSERT INTO messages (sender_id, receiver_id, content, created_at) " +
+                       "VALUES (" +
+                       "(SELECT id FROM users WHERE username = ?), " +
+                       "(SELECT id FROM users WHERE username = ?), " +
+                       "?, NOW())";
 
-    // Hàm cập nhật nội dung khi thu hồi tin nhắn
-    public static void recallMessage(String msgId) {
-        String query = "UPDATE messages SET content = 'Tin nhắn đã bị thu hồi' WHERE msg_id = ?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
-            ps.setString(1, msgId);
+
+            ps.setString(1, senderName);
+            ps.setString(2, receiverName);
+            ps.setString(3, content);
             ps.executeUpdate();
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
