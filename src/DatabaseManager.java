@@ -1,5 +1,7 @@
 
 import java.sql.*;
+import java.security.MessageDigest;
+import java.util.Base64;
 
 public class DatabaseManager {
     private static final String URL = "jdbc:mysql://localhost:3306/chatapp";
@@ -16,7 +18,8 @@ public class DatabaseManager {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, username);
-            ps.setString(2, password);
+            // Mã hóa mật khẩu người dùng nhập vào để so sánh với mã băm trong DB
+            ps.setString(2, hashPassword(password));  
             ResultSet rs = ps.executeQuery();
             return rs.next(); // Trả về true nếu tìm thấy tài khoản hợp lệ
         } catch (SQLException e) {
@@ -31,7 +34,9 @@ public class DatabaseManager {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, username);
-            ps.setString(2, password);
+            // Mã hóa mật khẩu trước khi lưu
+            ps.setString(2, hashPassword(password)); 
+            
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
              e.printStackTrace();
@@ -52,6 +57,17 @@ public class DatabaseManager {
             e.printStackTrace();
         }
     }
+ // Hàm băm mật khẩu bằng thuật toán SHA-256
+    private static String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            // Băm chuỗi password thành mảng byte
+            byte[] hashedBytes = md.digest(password.getBytes("UTF-8"));
+            // Chuyển mảng byte thành chuỗi Base64 để dễ lưu vào Database
+            return Base64.getEncoder().encodeToString(hashedBytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
  // Lưu tin nhắn riêng vào bảng messages với sender_id và receiver_id
     public static void savePrivateMessage(String senderName, String receiverName, String content) {
         String query = "INSERT INTO messages (sender_id, receiver_id, content, created_at) " +
