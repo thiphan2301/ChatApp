@@ -44,6 +44,26 @@ public class ChatServer {
             }
         }
     }
+    public boolean sendPrivateMessage(ClientHandler senderClient, String receiverUsername, String content) {
+        boolean found = false;
+
+        synchronized (clients) {
+            for (ClientHandler client : clients) {
+                if (receiverUsername.equals(client.getUsername())) {
+                    client.sendMessage("[PRIVATE] " + senderClient.getUsername() + ": " + content);
+                    senderClient.sendMessage("[PRIVATE to " + receiverUsername + "] " + content);
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found) {
+            senderClient.sendMessage("SYSTEM: Người nhận " + receiverUsername + " hiện không online.");
+        }
+
+        return found;
+    }
     public void removeClient(ClientHandler client) {
         clients.remove(client);
         broadcast(client.getUsername() + " has left the chat.");
@@ -102,14 +122,44 @@ public class ChatServer {
                     }
                 }
 
-                // Chat bình thường sau khi đăng nhập
+             // Xử lý tin nhắn sau khi người dùng đăng nhập thành công
                 String message;
                 while ((message = reader.readLine()) != null) {
-                    // Lưu tin nhắn vào Database
+                	// Nếu là tin nhắn riêng, server chỉ gửi cho đúng người nhận
+                    if (message.startsWith("PRIVATE:")) {
+                        String[] privateParts = message.split(":", 3);
+
+                        if (privateParts.length == 3) {
+                            String receiverUsername = privateParts[1];
+                            String privateContent = privateParts[2];
+
+                            boolean sent = sendPrivateMessage(this, receiverUsername, privateContent);
+
+                            if (sent) {
+                            	// Chỉ lưu tin nhắn riêng vào database khi người nhận online và gửi thành công
+                                DatabaseManager.savePrivateMessage(username, receiverUsername, privateContent);
+                                System.out.println("[PRIVATE] " + username + " -> " + receiverUsername + ": " + privateContent);
+                            } else {
+                                System.out.println("[PRIVATE FAILED] " + username + " -> " + receiverUsername + ": " + privateContent);
+                            }
+                        } else {
+                            sendMessage("SYSTEM: Sai định dạng tin nhắn riêng.");
+                        }
+
+                        continue;
+                    }
+
+                 // Chặn không cho thông tin đăng nhập/đăng ký bị phát ra phòng chat
+                    if (message.startsWith("LOGIN:") || message.startsWith("REG:")) {
+                        System.out.println("Ignored auth message after login from " + username);
+                        continue;
+                    }
+
+                    // Lưu tin nhắn thường vào Database
                     DatabaseManager.saveMessage(username, message);
-                    
-                    // Phát tin nhắn cho toàn bộ phòng
-                    broadcast(username + ":" + message); 
+
+                    // Phát tin nhắn thường cho toàn bộ phòng
+                    broadcast(username + ":" + message);
                     System.out.println(username + ": " + message);
                 }
                 
