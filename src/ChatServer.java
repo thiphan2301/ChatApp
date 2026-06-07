@@ -259,6 +259,20 @@ public class ChatServer {
                             // //11.9.3.A2.1. Server xử lý gói cảm xúc và tiến hành broadcast lệnh REACT đến tất cả thành viên trong phòng chat
                             broadcastToRoom(currentRoom, "REACT:" + parts[1] + ":" + username + ":" + parts[2]);
                         }
+                    } 
+                    // Xử lý gói tin CHAT thông thường (chứa UUID) từ Client gửi lên
+                    else if (message.startsWith("CHAT:")) {
+                        String[] parts = message.split(":", 3);
+                        if (parts.length == 3) {
+                            String uuid = parts[1];
+                            String chatContent = parts[2];
+                            
+                            // Sử dụng hàm saveMessage nạp 3 tham số (có UUID) để lưu trữ đồng bộ cho tính năng reply/recall
+                            DatabaseManager.saveMessage(uuid, username, "[" + currentRoom + "] " + chatContent);
+                            
+                            // Broadcast đúng định dạng chuỗi chuẩn: "CHAT:uuid:username:nội_dung"
+                            broadcastToRoom(currentRoom, "CHAT:" + uuid + ":" + username + ":" + chatContent);
+                        }
                     } else {
                         DatabaseManager.saveMessage(username, "[" + currentRoom + "] " + message);
                         broadcastToRoom(currentRoom, username + ":" + message);
