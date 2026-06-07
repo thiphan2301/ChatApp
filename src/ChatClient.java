@@ -288,16 +288,20 @@ public class ChatClient {
 		if (message.isEmpty()) {
 			return;
 		}
-
+		// UC07 - Gửi tin nhắn riêng tư
+		// 7.1.1. Người dùng nhập cú pháp /private tenNguoiNhan noiDung
 		if (message.equals("/private") || message.startsWith("/private ")) {
 			String[] parts = message.split("\\s+", 3);
+			// 7.1.4a.1. Nếu thiếu người nhận hoặc nội dung, hệ thống thông báo sai cú pháp
 			if (parts.length < 3) {
 				addMessageBubble("SYSTEM: Vui lòng nhập đúng cú pháp: /private tenNguoiNhan noiDung");
 				inputField.setText("");
 				return;
 			}
+			 // 7.1.2. Client tách tên người nhận và nội dung tin nhắn riêng
 			String receiver = parts[1].trim();
 			String content = parts[2].trim();
+		    // 7.1.3. Client gửi yêu cầu PRIVATE lên Server
 			writer.println("PRIVATE:" + receiver + ":" + content);
 			addMessageBubble(username + " -> " + receiver + " (private): " + content);
 		} else if (message.startsWith("/create ") || message.startsWith("/join ") || message.startsWith("/settings ")) {
