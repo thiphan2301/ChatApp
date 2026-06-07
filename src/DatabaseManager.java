@@ -11,44 +11,42 @@ public class DatabaseManager {
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 
-    // Hàm kiểm tra Đăng nhập
     public static boolean verifyUser(String username, String password) {
         String query = "SELECT * FROM users WHERE username = ? AND password = ?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, username);
-            // Mã hóa mật khẩu người dùng nhập vào để so sánh với mã băm trong DB
             ps.setString(2, hashPassword(password));  
             ResultSet rs = ps.executeQuery();
-            return rs.next(); // Trả về true nếu tìm thấy tài khoản hợp lệ
+            return rs.next(); 
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    // Hàm Đăng ký tài khoản mới
     public static boolean registerUser(String username, String password) {
         String query = "INSERT INTO users (username, password) VALUES (?, ?)";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, username);
-            // Mã hóa mật khẩu trước khi lưu
             ps.setString(2, hashPassword(password)); 
             
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
              e.printStackTrace();
-            return false; // Thất bại nếu trùng username 
+            return false; 
         }
     }
-    // Lưu tin nhắn thường vào bảng messages (Tự sinh msg_id)
+
     public static void saveMessage(String senderName, String content) {
         saveMessage(java.util.UUID.randomUUID().toString(), senderName, content);
     }
 
-    // Hàm lưu tin nhắn vào lịch sử (thêm msgId)
+    // UC 8 & UC 11: Hàm dùng chung để lưu vết thông tin bản ghi nội dung/file đính kèm vào bảng messages
     public static void saveMessage(String msgId, String senderName, String content) {
+        // //8.6.3.1. Truy vấn INSERT dữ liệu lịch sử tin nhắn kèm ID định danh UUID vào MySQL Database
+        // //11.9.3.B4.2.1. Truy vấn INSERT dữ liệu tin nhắn phản hồi kèm theo câu trích dẫn nội dung gốc
         String query = "INSERT INTO messages (msg_id, sender_id, content) " +
                        "VALUES (?, (SELECT id FROM users WHERE username = ?), ?)";
         try (Connection conn = getConnection();
@@ -58,12 +56,13 @@ public class DatabaseManager {
             ps.setString(3, content);
             ps.executeUpdate();
         } catch (SQLException e) {
-            System.out.println("Lỗi lưu DB (Hãy đảm bảo đã thêm cột msg_id vào bảng messages).");
+            System.out.println("Lỗi lưu DB.");
         }
     }
 
-    // Hàm cập nhật nội dung khi thu hồi tin nhắn
+    // UC 11 - Bước 9.3.C4: Thực hiện chỉnh sửa dữ liệu khi người dùng thu hồi tin nhắn
     public static void recallMessage(String msgId) {
+        // //11.9.3.C4.1.1. Thực thi truy vấn UPDATE trường content của dòng tin nhắn chỉ định thành chuỗi thông báo thay thế
         String query = "UPDATE messages SET content = 'Tin nhắn đã bị thu hồi' WHERE msg_id = ?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(query)) {
@@ -73,21 +72,18 @@ public class DatabaseManager {
             e.printStackTrace();
         }
     }
- // Hàm băm mật khẩu bằng thuật toán SHA-256
+
     private static String hashPassword(String password) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            // Băm chuỗi password thành mảng byte
             byte[] hashedBytes = md.digest(password.getBytes("UTF-8"));
-            // Chuyển mảng byte thành chuỗi Base64 để dễ lưu vào Database
             return Base64.getEncoder().encodeToString(hashedBytes);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
             }
     }
- // Lưu tin nhắn riêng vào bảng messages với sender_id và receiver_id
-    // Lưu tin nhắn riêng vào bảng messages với sender_id và receiver_id
+
     public static void savePrivateMessage(String msgId, String senderName, String receiverName, String content) {
         String query = "INSERT INTO messages (msg_id, sender_id, receiver_id, content, created_at) " +
                        "VALUES (?, " +
