@@ -13,22 +13,22 @@ import javax.swing.border.*;
 public class ChatClient {
 	private Socket socket;
 	private PrintWriter writer;
-	private BufferedReader serverReader; // Giữ luồng đọc cho cả authenticate và listener
+	private BufferedReader serverReader;
 	private String username;
 	private JFrame frame;
 	private JPanel chatPanel;
 	private JScrollPane chatScroll;
 	private JTextField inputField;
 	private JButton sendButton;
-	private JButton attachButton; // Nút gửi file
-	private JButton settingsButton; // Nút dành riêng điều khiển cấu hình phòng cho Host
+	private JButton attachButton; 
+	private JButton settingsButton;
 	private JLabel statusLabel;
 	private DefaultListModel<String> userListModel;
 	private JList<String> userList;
 	private Map<String, Color> userColors = new HashMap<>();
 	private List<String> availableRooms = new ArrayList<>();
 	
-	// Các trường phục vụ chức năng Trả lời, Cảm xúc, Thu hồi từ 0719575
+	// Các trường phục vụ chức năng Trả lời, Cảm xúc, Thu hồi
 	private JPanel replyPreviewPanel;
 	private JLabel replyPreviewLabel;
 	private String replyingToText = null;
@@ -67,7 +67,7 @@ public class ChatClient {
 		chatPanel.setLayout(new BoxLayout(chatPanel, BoxLayout.Y_AXIS));
 		chatPanel.setBackground(new Color(245, 245, 245));
 		chatScroll = new JScrollPane(chatPanel);
-		chatScroll.getVerticalScrollBar().setUnitIncrement(16); // Cuộn mượt hơn
+		chatScroll.getVerticalScrollBar().setUnitIncrement(16); 
 		frame.add(chatScroll, BorderLayout.CENTER);
 
 		userListModel = new DefaultListModel<>();
@@ -94,18 +94,16 @@ public class ChatClient {
 
 		JPanel bottomPanel = new JPanel(new BorderLayout());
 
-		// Khung UI Preview cho chức năng Trả lời (Reply)
 		replyPreviewPanel = new JPanel(new BorderLayout());
 		replyPreviewPanel.setBackground(new Color(220, 220, 220));
 		replyPreviewPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 		replyPreviewPanel.setVisible(false);
 		replyPreviewLabel = new JLabel();
 		
-		// UC 11 - Alternative Flow A2: Người dùng hủy thao tác trả lời
 		JButton cancelReplyBtn = new JButton("X");
 		cancelReplyBtn.setMargin(new Insets(0, 5, 0, 5));
 		cancelReplyBtn.addActionListener(e -> {
-			// //11.A2.1. Người dùng nhấn nút hủy bỏ thao tác trên khung preview trả lời
+			// A2. Hủy thao tác: Khi menu tương tác đang mở hoặc popup xác nhận thu hồi hiện lên, người dùng click ra ngoài khoảng trống hoặc bấm "Hủy", hệ thống đóng menu/popup và quay về trạng thái ban đầu.
 			clearReplyState();
 		});
 		replyPreviewPanel.add(new JLabel("↪ Đang trả lời: "), BorderLayout.WEST);
@@ -115,10 +113,10 @@ public class ChatClient {
 		JPanel inputPanel = new JPanel(new BorderLayout());
 		inputField = new JTextField();
 
-		// UC 8 - Bước 8.1: Người dùng click vào biểu tượng gửi file đính kèm
+		// UC 8 - Gửi file
 		attachButton = new JButton("📎 File");
 		attachButton.addActionListener(e -> {
-			// //8.1.1. Người dùng kích hoạt sự kiện bấm nút đính kèm file tệp tin trên giao diện client
+			// 8.1.1. Người dùng kích hoạt sự kiện bấm nút đính kèm file
 			sendFile();
 		});
 
@@ -202,34 +200,31 @@ public class ChatClient {
 		frame.revalidate();
 	}
 
-	// UC 8: Xử lý chọn và gửi file lên hệ thống máy chủ
 	private void sendFile() {
-		// //8.2.1. Hệ thống khởi tạo và mở cửa sổ JFileChooser để người dùng lựa chọn file cục bộ
+		// 8.2.1. Hệ thống khởi tạo và mở cửa sổ JFileChooser
 		JFileChooser fileChooser = new JFileChooser();
 		int result = fileChooser.showOpenDialog(frame);
 		
 		if (result == JFileChooser.APPROVE_OPTION) {
-			// //8.3.1. Người dùng chọn một file từ hệ thống lưu trữ của thiết bị cá nhân
+			// 8.3.1. Người dùng chọn một file
 			File selectedFile = fileChooser.getSelectedFile();
-			
-			// //8.4.1. Hệ thống thực hiện kiểm tra dung lượng của tệp tin trước khi tải lên (Giới hạn tối đa 50MB)
+			// 8.4.1. Hệ thống thực hiện kiểm tra dung lượng
 			long fileSizeMB = selectedFile.length() / (1024 * 1024);
 			
-			// UC 8 - Alternative Flow A1: File được chọn có dung lượng vượt quá giới hạn cho phép
 			if (fileSizeMB > 50) {
-				// //8.A1.1. Hệ thống thông báo lỗi dung lượng và từ chối xử lý tải file lên máy chủ công cộng
+				// 8.A1.1. Hệ thống thông báo lỗi dung lượng
 				JOptionPane.showMessageDialog(frame, "Dung lượng file vượt quá 50MB!", "Lỗi hệ thống",
 						JOptionPane.ERROR_MESSAGE);
 				return;
 			}
 			
 			try {
-				// //8.5.1. Người dùng nhấn nút xác nhận truyền file qua mạng phòng chat
+				// 8.5.1. Người dùng nhấn nút xác nhận
 				byte[] fileBytes = Files.readAllBytes(selectedFile.toPath());
 				String encodedString = Base64.getEncoder().encodeToString(fileBytes);
 				String uuid = UUID.randomUUID().toString();
 				
-				// //8.6.1. Client đóng gói dữ liệu chuỗi Base64 và thực hiện gửi gói lệnh dạng FILE truyền tới Server
+				// 8.6.1. Client đóng gói dữ liệu chuỗi Base64 gửi lên Server
 				writer.println("FILE:" + uuid + ":" + selectedFile.getName() + ":" + encodedString);
 			} catch (Exception ex) {
 				JOptionPane.showMessageDialog(frame, "Đã xảy ra lỗi khi đọc tệp tin: " + ex.getMessage());
@@ -310,10 +305,9 @@ public class ChatClient {
 		} else {
 			String uuid = UUID.randomUUID().toString();
 			
-			// UC 11 - Gửi nội dung tin nhắn Trả lời phản hồi (Luồng 9.3.B3 và 9.3.B4)
+			// UC 11 - Xử lý gửi tin nhắn trả lời
 			if (replyingToText != null) {
-				// //11.9.3.B3.1. Người dùng gõ nội dung vào ô nhập liệu chính và nhấn phím Enter gửi đi
-				// //11.9.3.B4.1. Client cấu trúc và bắn chuỗi dữ liệu chứa giao thức REPLY kèm nội dung trích dẫn lên máy chủ
+				// 11.3.B3. Người dùng nhập nội dung phản hồi và nhấn "Gửi".
 				writer.println("REPLY:" + uuid + ":" + replyingToText + "|" + message);
 				clearReplyState();
 			} else {
@@ -352,7 +346,6 @@ public class ChatClient {
 							JOptionPane.showMessageDialog(frame, errorMsg, "Lỗi phòng", JOptionPane.ERROR_MESSAGE);
 						});
 					} 
-					// UC 8 - Bước 8.6 & 8.7: Tiếp nhận đồng bộ tệp tin đa phương tiện gửi từ Server
 					else if (message.startsWith("FILE:")) {
 						String[] parts = message.split(":", 5);
 						if (parts.length == 5) {
@@ -367,10 +360,7 @@ public class ChatClient {
 									downloadDir.mkdir();
 								File outputFile = new File(downloadDir, fileName);
 								
-								// //8.6.2. Hệ thống tải dữ liệu xuống thư mục Downloads nội bộ của Client một cách tự động
 								Files.write(outputFile.toPath(), decodedBytes);
-								
-								// //8.7.1. Cập nhật và hiển thị trực quan tệp tin đính kèm (Hình ảnh/Nút bấm) lên màn hình phòng chat công cộng
 								addBubble(uuid, sender, null, null, outputFile);
 							} catch (Exception ex) {
 								System.out.println("Lỗi đồng bộ tệp đính kèm: " + ex.getMessage());
@@ -381,7 +371,7 @@ public class ChatClient {
 						if (p.length == 4)
 							addBubble(p[1], p[2], p[3], null, null);
 					} 
-					// UC 11 - Bước 9.3.B4: Tiếp nhận và hiển thị một tin nhắn trích dẫn (REPLY) được trả về từ phía Server
+					// UC 11 - Nhận tin nhắn Reply từ Server
 					else if (message.startsWith("REPLY:")) {
 						String[] p = message.split(":", 4);
 						if (p.length == 4) {
@@ -389,20 +379,18 @@ public class ChatClient {
 							String quote = replyParts[0];
 							String content = replyParts.length > 1 ? replyParts[1] : "";
 							
-							// //11.9.3.B4.3. Giao diện client dựng bong bóng phản hồi kèm ô trích dẫn nội dung gốc phía trên văn bản mới
+							// 11.3.B4. Hệ thống tải tin nhắn lên và hiển thị tin nhắn mới kèm theo trích dẫn của tin nhắn gốc.
 							addBubble(p[1], p[2], content, quote, null);
 						}
 					} 
-					// UC 11 - Bước 9.3.C4: Tiếp nhận thông tin thu hồi gói tin từ máy chủ phát tới
+					// UC 11 - Nhận tín hiệu Thu Hồi từ Server
 					else if (message.startsWith("RECALL:")) {
-						// //11.9.3.C4.2. Khớp mã định danh tin nhắn và tiến hành xóa bỏ thông tin hiển thị tại client cục bộ
 						handleRecallMessage(message.split(":")[1]);
 					} 
-					// UC 11 - Bước 9.3.A2: Nhận gói dữ liệu cập nhật trạng thái cảm xúc từ máy chủ
+					// UC 11 - Nhận tín hiệu Cảm Xúc từ Server
 					else if (message.startsWith("REACT:")) {
 						String[] p = message.split(":", 4);
 						if (p.length == 4)
-							// //11.9.3.A2.2. Nhận tín hiệu biểu tượng cảm xúc đồng bộ và re-render cấu trúc danh sách icon biểu cảm dưới bong bóng chat
 							handleReaction(p[1], p[2], p[3]);
 					} else if (message.startsWith("SYSTEM:")) {
 						addSystemMessage(message);
@@ -458,7 +446,6 @@ public class ChatClient {
 			contentPanel.add(nameLabel);
 			contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 
-			// Dựng cấu trúc giao diện trích dẫn câu hỏi cũ (Quote UI Block) của UC 11
 			if (quote != null && !quote.isEmpty()) {
 				JTextArea quoteArea = new JTextArea("↪ " + quote);
 				quoteArea.setFont(new Font("Arial", Font.ITALIC, 12));
@@ -475,7 +462,6 @@ public class ChatClient {
 				contentPanel.add(Box.createRigidArea(new Dimension(0, 5)));
 			}
 
-			// Giao diện hiển thị đính kèm tệp tin đa phương tiện thuộc luồng UC 8
 			JComponent mainContent = null;
 			String rawTextForMenu = "";
 			if (file != null) {
@@ -543,7 +529,6 @@ public class ChatClient {
 			contentWrapperMap.put(uuid, mainContentWrapper);
 			reactionPanelMap.put(uuid, reactionPanel);
 
-			// UC 11 - Bước 9.1 và 9.2: Đăng ký lắng nghe sự kiện nhấn chuột phải bật menu tương tác tin nhắn
 			JPopupMenu popupMenu = createInteractionMenu(uuid, sender, rawTextForMenu);
 			mainContent.addMouseListener(new MouseAdapter() {
 				public void mousePressed(MouseEvent e) {
@@ -555,13 +540,13 @@ public class ChatClient {
 				}
 
 				private void showPopup(MouseEvent e) {
-					// //11.9.1.1. Người dùng click nút chuột phải lên vùng text tin nhắn chat cụ thể
 					if (e.isPopupTrigger() && mainContentWrapper.getComponentCount() > 0) {
 						Component comp = mainContentWrapper.getComponent(0);
 						boolean isRecalled = (comp instanceof JLabel)
 								&& "Tin nhắn đã bị thu hồi".equals(((JLabel) comp).getText());
 						if (!isRecalled) {
-							// //11.9.2.1. Hệ thống dựng một menu pop-up hiển thị danh mục lệnh: Thả cảm xúc, Trả lời, Thu hồi
+							// 11.1. Người dùng nhấn giữ (trên mobile) hoặc click chuột phải/click biểu tượng menu (trên web/PC) vào một tin nhắn cụ thể.
+							// 11.2. Hệ thống hiển thị menu tùy chọn các hành động: biểu tượng cảm xúc, "Trả lời", "Thu hồi".
 							popupMenu.show(e.getComponent(), e.getX(), e.getY());
 						}
 					}
@@ -575,13 +560,12 @@ public class ChatClient {
 		});
 	}
 
-	// UC 11 - Bước 9.3.C4: Cập nhật giao diện xóa văn bản gốc khi tin nhắn bị thu hồi thành công
 	private void handleRecallMessage(String uuid) {
 		SwingUtilities.invokeLater(() -> {
 			JPanel wrapper = contentWrapperMap.get(uuid);
 			if (wrapper != null) {
 				wrapper.removeAll();
-				// //11.9.3.C4.3. Hệ thống xóa trắng vùng hiển thị text cũ và ghi đè trạng thái "Tin nhắn đã bị thu hồi" dạng chữ nghiêng màu xám
+				// 11.3.C4. Hệ thống xóa nội dung tin nhắn gốc ở cả 2 phía và thay thế bằng dòng trạng thái "Tin nhắn đã bị thu hồi".
 				JLabel recalledLabel = new JLabel("Tin nhắn đã bị thu hồi");
 				recalledLabel.setFont(new Font("Arial", Font.ITALIC, 13));
 				recalledLabel.setForeground(Color.LIGHT_GRAY);
@@ -589,7 +573,6 @@ public class ChatClient {
 				wrapper.revalidate();
 				wrapper.repaint();
 				
-				// UC 11 - Luồng phụ A1 (Xóa cảm xúc): Tự động gỡ bỏ các icon biểu cảm thuộc dòng tin nhắn bị xóa
 				JPanel reactPanel = reactionPanelMap.get(uuid);
 				if (reactPanel != null) {
 					reactPanel.removeAll();
@@ -600,7 +583,6 @@ public class ChatClient {
 		});
 	}
 
-	// UC 11 - Bước 9.3.A2: Kết xuất và vẽ lại icon biểu tượng thả cảm xúc lên bong bóng chat
 	private void handleReaction(String uuid, String sender, String emoji) {
 		SwingUtilities.invokeLater(() -> {
 			JPanel reactPanel = reactionPanelMap.get(uuid);
@@ -609,9 +591,8 @@ public class ChatClient {
 			List<String> reactions = reactionDataMap.computeIfAbsent(uuid, k -> new ArrayList<>());
 			String reactKey = sender + "|" + emoji;
 			
-			// UC 11 - Alternative Flow A1: Người dùng nhấn lại cùng một loại emoji để xóa bỏ cảm xúc cũ
+			// A1. Thay đổi/Xóa cảm xúc: Nếu người dùng chọn lại biểu tượng cảm xúc đã thả, hệ thống sẽ gỡ bỏ cảm xúc. Nếu chọn biểu tượng khác, hệ thống thay thế thành biểu tượng mới.
 			if (reactions.contains(reactKey)) {
-				// //11.A1.1. Hệ thống xóa bản ghi biểu cảm ra khỏi danh sách lưu trữ của Client cục bộ
 				reactions.remove(reactKey); 
 			} else {
 				reactions.add(reactKey); 
@@ -623,7 +604,7 @@ public class ChatClient {
 				JLabel emojiLabel = new JLabel(emj);
 				emojiLabel.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
 				
-				// //11.9.3.A2.3. Hệ thống tạo các nhãn JLabel chứa emoji đính kèm vào phần chân của bong bóng tin nhắn chat nhóm
+				// 11.3.A2. Hệ thống cập nhật biểu tượng cảm xúc đó hiển thị ngay góc dưới của tin nhắn.
 				reactPanel.add(emojiLabel);
 			}
 			reactPanel.revalidate();
@@ -631,49 +612,44 @@ public class ChatClient {
 		});
 	}
 
-	// UC 11 - Bước 9.3: Thiết kế tạo lập Menu ngữ cảnh click chuột phải và liên kết xử lý lệnh tương tác
 	private JPopupMenu createInteractionMenu(String uuid, String sender, String rawText) {
 		JPopupMenu menu = new JPopupMenu();
 		
-		// Luồng 9.3.A1: Người dùng lựa chọn chức năng Thả cảm xúc biểu cảm
 		JMenu reactMenu = new JMenu("Thả cảm xúc");
 		String[] emojis = { "👍", "❤️", "😂", "😮", "😢", "😡" };
 		for (String emj : emojis) {
 			JMenuItem item = new JMenuItem(emj);
 			item.addActionListener(e -> {
-				// //11.9.3.A1.1. Người dùng click chọn một biểu tượng cụ thể từ danh sách icon hiển thị trong menu con đổ xuống
+				// 11.3.A1. Người dùng chọn một biểu tượng cảm xúc (Reaction) từ menu.
 				writer.println("REACT:" + uuid + ":" + emj);
 			});
 			reactMenu.add(item);
 		}
 		menu.add(reactMenu);
 		
-		// Luồng 9.3.B1 & 9.3.B2: Người dùng chọn tính năng Trả lời (Reply)
 		JMenuItem replyItem = new JMenuItem("Trả lời");
 		replyItem.addActionListener(e -> {
-			// //11.9.3.B1.1. Người dùng bấm chuột trái lựa chọn chức năng "Trả lời" trên thanh Menu ngữ cảnh
+			// 11.3.B1. Người dùng click chọn "Trả lời".
 			replyingToText = sender + ": " + rawText;
 			replyPreviewLabel.setText(replyingToText);
 			
-			// //11.9.3.B2.1. Hệ thống hiển thị cấu trúc thanh Preview Panel chứa nội dung tóm lược dòng chat cũ ở trên khu vực input
+			// 11.3.B2. Hệ thống hiển thị một khung preview đính kèm nội dung tin nhắn gốc ngay trên thanh nhập liệu.
 			replyPreviewPanel.setVisible(true);
 			inputField.requestFocus();
 			frame.revalidate();
 		});
 		menu.add(replyItem);
 		
-		// Luồng 9.3.C1 & 9.3.C2: Người dùng lựa chọn chức năng Thu Hồi (Chỉ hỗ trợ hiển thị với tin nhắn do chính mình gửi đi)
 		if (username.equals(sender)) {
 			menu.addSeparator();
 			JMenuItem recallItem = new JMenuItem("Thu hồi tin nhắn");
 			recallItem.addActionListener(e -> {
-				// //11.9.3.C1.1. Người dùng bấm chọn dòng chữ tính năng lệnh "Thu hồi tin nhắn"
-				
-				// //11.9.3.C2.1. Hệ thống kích hoạt hiển thị hộp thoại xác nhận lựa chọn hành động từ người dùng: JConfirmDialog
+				// 11.3.C1. Người dùng click chọn "Thu hồi".
+				// 11.3.C2. Hệ thống hiển thị popup xác nhận: "Bạn có chắc chắn muốn thu hồi tin nhắn này?".
 				int confirm = JOptionPane.showConfirmDialog(frame, "Bạn có chắc chắn muốn thu hồi tin nhắn này không?", "Xác nhận hành động",
 						JOptionPane.YES_NO_OPTION);
 						
-				// //11.9.3.C3.1. Người dùng click chuột xác nhận đồng ý nhấn nút "Yes" (Đồng ý)
+				// 11.3.C3. Người dùng chọn "Đồng ý".
 				if (confirm == JOptionPane.YES_OPTION) {
 					writer.println("RECALL:" + uuid);
 				}
