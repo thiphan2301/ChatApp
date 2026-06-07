@@ -68,13 +68,15 @@ public class ChatServer {
             }
         }
     }
-
+ // UC07 - Gửi tin nhắn riêng tư
+ // 7.1.5. Server tìm người nhận trong danh sách user online và chỉ gửi tin nhắn cho đúng người nhận
     public boolean sendPrivateMessage(ClientHandler senderClient, String receiverUsername, String content) {
         boolean found = false;
         for (Room room : rooms.values()) {
             synchronized (room.clients) {
                 for (ClientHandler client : room.clients) {
                     if (receiverUsername.equals(client.getUsername())) {
+                    	   // 7.1.6. Gửi tin nhắn riêng đến người nhận và phản hồi lại cho người gửi
                         client.sendMessage("[PRIVATE] " + senderClient.getUsername() + ": " + content);
                         senderClient.sendMessage("[PRIVATE to " + receiverUsername + "] " + content);
                         found = true;
@@ -86,6 +88,7 @@ public class ChatServer {
         }
 
         if (!found) {
+        	// 7.1.8b.1. Nếu người nhận không online, hệ thống thông báo lỗi cho người gửi
             senderClient.sendMessage("SYSTEM: Người nhận '" + receiverUsername + "' hiện không online.");
         }
         return found;
@@ -173,7 +176,8 @@ public class ChatServer {
 
                 String message;
                 while ((message = reader.readLine()) != null) {
-                    
+                	// UC07 - Gửi tin nhắn riêng tư
+                	// 7.1.4. Server nhận yêu cầu PRIVATE từ Client và tách thông tin người nhận, nội dung
                     if (message.startsWith("PRIVATE:")) {
                         String[] privateParts = message.split(":", 3);
                         if (privateParts.length == 3) {
@@ -182,12 +186,14 @@ public class ChatServer {
                             
                             boolean sent = sendPrivateMessage(this, receiverUsername, privateContent);
                             if (sent) {
+                                // 7.1.7. Chỉ lưu tin nhắn riêng vào database khi gửi thành công
                                 DatabaseManager.savePrivateMessage(username, receiverUsername, privateContent);
                                 System.out.println("[PRIVATE] " + username + " -> " + receiverUsername + ": " + privateContent);
                             } else {
                                 System.out.println("[PRIVATE FAILED] " + username + " -> " + receiverUsername + ": " + privateContent);
                             }
                         } else {
+                            // 7.1.4a.2. Nếu định dạng PRIVATE không hợp lệ, hệ thống báo sai định dạng
                             sendMessage("SYSTEM: Sai định dạng tin nhắn riêng.");
                         }
                         continue;

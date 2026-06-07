@@ -83,7 +83,8 @@ public class DatabaseManager {
             return null;
             }
     }
-
+ // UC07 - Gửi tin nhắn riêng tư
+ // 7.1.8. Lưu lịch sử tin nhắn riêng vào bảng messages với msg_id, sender_id, receiver_id, content và created_at
     public static void savePrivateMessage(String msgId, String senderName, String receiverName, String content) {
         String query = "INSERT INTO messages (msg_id, sender_id, receiver_id, content, created_at) " +
                        "VALUES (?, " +
@@ -104,7 +105,7 @@ public class DatabaseManager {
             e.printStackTrace();
         }
     }
-
+ // 7.1.8.1. Tự tạo msg_id bằng UUID trước khi lưu tin nhắn riêng
     public static void savePrivateMessage(String senderName, String receiverName, String content) {
         savePrivateMessage(java.util.UUID.randomUUID().toString(), senderName, receiverName, content);
     }
