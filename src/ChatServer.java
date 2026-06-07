@@ -5,13 +5,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ChatServer {
     private ServerSocket serverSocket;
-    // Quản lý danh sách các phòng chat, mặc định sẽ có phòng "Lobby"
     private Map<String, Room> rooms = new ConcurrentHashMap<>();
 
     public ChatServer(int port) {
         try {
             serverSocket = new ServerSocket(port);
-            // Khởi tạo phòng mặc định (Không có host, không mật khẩu, cho phép lịch sử và vào tự do)
             rooms.put("Lobby", new Room("Lobby", "", null, true, true));
             System.out.println("Server started on port " + port);
         } catch (IOException e) {
@@ -31,7 +29,6 @@ public class ChatServer {
         }
     }
 
-    // Phát tin nhắn cho tất cả người dùng trong một phòng cụ thể
     public void broadcastToRoom(String roomName, String message) {
         Room room = rooms.get(roomName);
         if (room != null) {
@@ -44,7 +41,6 @@ public class ChatServer {
         }
     }
 
-    // Cập nhật danh sách người dùng cho một phòng cụ thể
     public void updateUserList(String roomName) {
         Room room = rooms.get(roomName);
         if (room != null) {
@@ -61,7 +57,6 @@ public class ChatServer {
         }
     }
 
-    // Gửi danh sách các phòng hiện có cho tất cả người dùng trên server
     public void broadcastRoomList() {
         String roomNames = String.join(",", rooms.keySet());
         String msg = "ROOMLIST:" + roomNames;
@@ -74,7 +69,6 @@ public class ChatServer {
         }
     }
 
-    // Gửi tin nhắn riêng (Tìm kiếm người nhận trên toàn bộ các phòng)
     public boolean sendPrivateMessage(ClientHandler senderClient, String receiverUsername, String content) {
         boolean found = false;
         for (Room room : rooms.values()) {
@@ -88,7 +82,7 @@ public class ChatServer {
                     }
                 }
             }
-            if (found) break; // Thoát vòng lặp phòng nếu đã tìm thấy
+            if (found) break; 
         }
 
         if (!found) {
@@ -102,7 +96,6 @@ public class ChatServer {
         server.start();
     }
 
-    // Class quản lý thông tin của một phòng chat
     class Room {
         String name;
         String key;
@@ -121,12 +114,11 @@ public class ChatServer {
         }
     }
 
-    // Class xử lý từng luồng kết nối của Client
     class ClientHandler extends Thread {
         private Socket socket;
         private PrintWriter writer;
         private String username;
-        private String currentRoom = "Lobby"; // Mặc định ở sảnh
+        private String currentRoom = "Lobby"; 
 
         public ClientHandler(Socket socket) {
             this.socket = socket;
@@ -142,7 +134,6 @@ public class ChatServer {
                 
                 boolean loggedIn = false;
                 
-                // GIAI ĐOẠN 1: XÁC THỰC (ĐĂNG KÝ / ĐĂNG NHẬP)
                 while (!loggedIn) {
                     String authRequest = reader.readLine();
                     if (authRequest == null) return;
@@ -166,7 +157,6 @@ public class ChatServer {
                             writer.println("LOGIN_SUCCESS");
                             loggedIn = true;
                             
-                            // Tự động gia nhập Lobby sau khi đăng nhập thành công
                             Room lobby = rooms.get("Lobby");
                             lobby.clients.add(this);
                             writer.println("ROOM_CHANGED:" + currentRoom);
@@ -181,11 +171,9 @@ public class ChatServer {
                     }
                 }
 
-                // GIAI ĐOẠN 2: XỬ LÝ LỆNH VÀ NHẮN TIN
                 String message;
                 while ((message = reader.readLine()) != null) {
                     
-                    // 1. Nhắn tin riêng tư
                     if (message.startsWith("PRIVATE:")) {
                         String[] privateParts = message.split(":", 3);
                         if (privateParts.length == 3) {
@@ -194,7 +182,6 @@ public class ChatServer {
                             
                             boolean sent = sendPrivateMessage(this, receiverUsername, privateContent);
                             if (sent) {
-                                // Chỉ lưu DB khi gửi thành công
                                 DatabaseManager.savePrivateMessage(username, receiverUsername, privateContent);
                                 System.out.println("[PRIVATE] " + username + " -> " + receiverUsername + ": " + privateContent);
                             } else {
@@ -205,7 +192,6 @@ public class ChatServer {
                         }
                         continue;
                     } 
-                    // 2. Tạo phòng mới
                     else if (message.startsWith("/create ")) {
                         String[] parts = message.substring(8).split("\\|");
                         if (parts.length >= 4) {
@@ -213,13 +199,11 @@ public class ChatServer {
                         }
                         continue;
                     } 
-                    // 3. Tham gia phòng khác
                     else if (message.startsWith("/join ")) {
                         String[] parts = message.substring(6).split("\\|");
                         handleJoinRoom(parts[0].trim(), parts.length > 1 ? parts[1].trim() : "");
                         continue;
                     } 
-                    // 4. Chủ phòng thay đổi cài đặt
                     else if (message.startsWith("/settings ")) {
                         String[] parts = message.substring(10).split("\\|");
                         if (parts.length >= 2) {
@@ -228,17 +212,58 @@ public class ChatServer {
                         continue;
                     }
 
-                    // Chặn các tin nhắn lỗi nhịp chứa thông tin đăng nhập lọt ra phòng chat
                     if (message.startsWith("LOGIN:") || message.startsWith("REG:")) {
                         continue;
                     }
 
-                    // 5. Tin nhắn chung trong phòng
-                    // Lưu tin nhắn vào DB kèm theo Tên phòng để dễ phân biệt
-                    DatabaseManager.saveMessage(username, "[" + currentRoom + "] " + message);
-                    
-                    broadcastToRoom(currentRoom, username + ":" + message);
-                    System.out.println("[" + currentRoom + "] " + username + ": " + message);
+                    // UC 8 - Bước 8.6: Tiếp nhận gói tin nhị phân mã hóa Base64 của File đính kèm từ Client gửi lên
+                    if (message.startsWith("FILE:")) {
+                        String[] parts = message.split(":", 4);
+                        if (parts.length == 4) {
+                            String uuid = parts[1];
+                            String fileName = parts[2];
+                            String base64Data = parts[3];
+                            
+                            // //8.6.3. Server ghi nhận dữ liệu, gọi tầng DB lưu lại lịch sử tin nhắn dạng text đính kèm
+                            DatabaseManager.saveMessage(uuid, username, "[" + currentRoom + "] [Đính kèm file]: " + fileName);
+                            
+                            // //8.6.4. Server tiến hành broadcast đồng bộ chuỗi dữ liệu FILE này đến tất cả Client trong phòng chat
+                            broadcastToRoom(currentRoom, "FILE:" + uuid + ":" + username + ":" + fileName + ":" + base64Data);
+                        }
+                    } 
+                    // UC 11 - Bước 9.3.B4: Tiếp nhận yêu cầu Trả lời tin nhắn (REPLY)
+                    else if (message.startsWith("REPLY:")) {
+                        String[] parts = message.split(":", 3);
+                        if (parts.length == 3) {
+                            // //11.9.3.B4.2. Server lưu tin nhắn trích dẫn vào cơ sở dữ liệu qua tầng DatabaseManager
+                            DatabaseManager.saveMessage(parts[1], username, "[" + currentRoom + "] [Trả lời]: " + parts[2]);
+                            
+                            // //11.9.3.B4.3. Server phát gói tin phản hồi REPLY chứa text và quote đồng loạt đến mọi người trong nhóm
+                            broadcastToRoom(currentRoom, "REPLY:" + parts[1] + ":" + username + ":" + parts[2]);
+                        }
+                    } 
+                    // UC 11 - Bước 9.3.C4: Tiếp nhận yêu cầu Thu hồi tin nhắn từ người gửi (RECALL)
+                    else if (message.startsWith("RECALL:")) {
+                        String uuid = message.split(":")[1];
+                        
+                        // //11.9.3.C4.1. Server xử lý lệnh, gọi sang DBManager cập nhật chuỗi thành "Tin nhắn đã bị thu hồi"
+                        DatabaseManager.recallMessage(uuid);
+                        
+                        // //11.9.3.C4.2. Server broadcast gói lệnh RECALL kèm msgId (UUID) đến toàn bộ Client hiện tại trong phòng
+                        broadcastToRoom(currentRoom, "RECALL:" + uuid);
+                    } 
+                    // UC 11 - Bước 9.3.A2: Tiếp nhận và xử lý yêu cầu Thả cảm xúc tin nhắn (REACT)
+                    else if (message.startsWith("REACT:")) {
+                        String[] parts = message.split(":", 3);
+                        if (parts.length == 3) {
+                            // //11.9.3.A2.1. Server xử lý gói cảm xúc và tiến hành broadcast lệnh REACT đến tất cả thành viên trong phòng chat
+                            broadcastToRoom(currentRoom, "REACT:" + parts[1] + ":" + username + ":" + parts[2]);
+                        }
+                    } else {
+                        DatabaseManager.saveMessage(username, "[" + currentRoom + "] " + message);
+                        broadcastToRoom(currentRoom, username + ":" + message);
+                        System.out.println("[" + currentRoom + "] " + username + ": " + message);
+                    }
                 }
                 
             } catch (IOException e) {
@@ -291,15 +316,14 @@ public class ChatServer {
         }
 
         private void changeRoom(String rName, Room room) {
-            removeClientFromCurrentRoom(); // Rời phòng cũ
+            removeClientFromCurrentRoom(); 
             
             currentRoom = rName;
             room.clients.add(this);
             
             writer.println("ROOM_CHANGED:" + currentRoom);
-            writer.println("IS_HOST:" + (room.host == this)); // Báo cho client biết mình có phải Host không
+            writer.println("IS_HOST:" + (room.host == this)); 
             
-            // Tải lịch sử nếu được phép
             if (room.allowHistory) {
                 synchronized (room.history) {
                     for (String histMsg : room.history) {
@@ -319,12 +343,10 @@ public class ChatServer {
                 broadcastToRoom(currentRoom, "SYSTEM: " + username + " đã rời phòng.");
                 updateUserList(currentRoom);
                 
-                // Thu hồi phòng nếu trống (trừ Lobby)
                 if (room.clients.isEmpty() && !currentRoom.equals("Lobby")) {
                     rooms.remove(currentRoom);
-                    broadcastRoomList(); // Cập nhật lại danh sách phòng cho mọi người
+                    broadcastRoomList(); 
                 } 
-                // Chuyển quyền Host nếu Host rời đi nhưng phòng vẫn còn người
                 else if (room.host == this && !room.clients.isEmpty()) {
                     room.host = room.clients.get(0);
                     room.host.sendMessage("IS_HOST:true");
